@@ -20,6 +20,17 @@ datasources:
     basicAuthUser:
     withCredentials:
     isDefault: true
+    jsonData:
+      maxLines: 1000
+      # Log -> trace: turns the trace_id in each JSON log line into a "View trace" link to Tempo.
+      derivedFields:
+        - name: TraceID
+          matcherType: regex
+          matcherRegex: '"trace_id":\s*"(\w+)"'
+          # $$ escapes the $ so Grafana doesn't treat it as an environment variable at provisioning time.
+          url: '$${__value.raw}'
+          urlDisplayLabel: View trace
+          datasourceUid: grafana_tempo
   - name: Prometheus
     type: prometheus
     access: proxy
@@ -44,3 +55,15 @@ datasources:
     basicAuthUser:
     withCredentials:
     isDefault: false
+    jsonData:
+      # Trace -> logs: from a span, open the Loki log lines for the same trace.
+      tracesToLogsV2:
+        datasourceUid: grafana_lokiq
+        spanStartTimeShift: '-1m'
+        spanEndTimeShift: '1m'
+        filterByTraceID: true
+        filterBySpanID: false
+        tags:
+          # Tempo's service.name maps to Loki's "service" label.
+          - key: service.name
+            value: service
